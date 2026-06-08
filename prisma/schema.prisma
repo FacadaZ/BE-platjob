@@ -1,0 +1,166 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// NOTE: To switch to MySQL in production:
+// 1. Change the provider below to "mysql"
+// 2. Update your DATABASE_URL in the .env file to a mysql connection string (e.g., mysql://user:pass@localhost:3306/platjob)
+// 3. Run: npx prisma migrate dev --name init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  avatarUrl    String?
+  role         String   @default("CLIENT") // CLIENT | TECHNICIAN | ADMIN
+  status           String    @default("ACTIVE") // ACTIVE | BLOCKED
+  suspensionReason String?
+  suspendedUntil   DateTime?
+  phone            String?
+  location         String?
+  createdAt        DateTime  @default(now())
+  updatedAt    DateTime @updatedAt
+
+  technicianProfile        TechnicianProfile?
+  serviceRequestsAsClient  ServiceRequest[]          @relation("ClientRequests")
+  reviewsAsClient          Review[]                  @relation("ClientReviews")
+  conversationParticipants ConversationParticipant[]
+  messagesSent             ChatMessage[]
+
+  @@map("usuarios")
+}
+
+model Category {
+  id        Int                 @id @default(autoincrement())
+  key       String              @unique
+  label     String
+  createdAt DateTime            @default(now())
+
+  technicians TechnicianProfile[]
+  
+  @@map("categorias")
+}
+
+model TechnicianProfile {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryKey    String
+  category       Category @relation(fields: [categoryKey], references: [key])
+  specialties    String // Guardado como string JSON para compatibilidad total SQLite
+  bio            String?
+  rating         Float    @default(0.00)
+  reviewCount    Int      @default(0)
+  jobsCompleted  Int      @default(0)
+  hourlyRate     Float
+  isAvailable    Boolean  @default(true)
+  isVerified     Boolean  @default(false)
+  responseTime   String?
+  joinedAt       DateTime @default(now())
+
+  portfolioItems             PortfolioItem[]
+  serviceRequestsAsTechnician ServiceRequest[] @relation("TechnicianRequests")
+  reviewsAsTechnician        Review[]         @relation("TechnicianReviews")
+
+  @@map("perfiles_tecnicos")
+}
+
+model PortfolioItem {
+  id           Int               @id @default(autoincrement())
+  technicianId Int
+  technician   TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  imageUrl     String
+  title        String
+  description  String?
+  createdAt    DateTime          @default(now())
+
+  @@map("elementos_portafolio")
+}
+
+model ServiceRequest {
+  id            Int           @id @default(autoincrement())
+  clientId      Int
+  client        User          @relation("ClientRequests", fields: [clientId], references: [id], onDelete: Cascade)
+  technicianId  Int
+  technician    TechnicianProfile @relation("TechnicianRequests", fields: [technicianId], references: [id], onDelete: Cascade)
+  category      String
+  title         String
+  description   String
+  status        String        @default("PENDING") // PENDING | ACCEPTED | IN_PROGRESS | COMPLETED | CANCELLED
+  scheduledDate DateTime?
+  completedDate DateTime?
+  address       String
+  budget        Float?
+  agreedRate    Float?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  review        Review?
+  conversations Conversation[]
+
+  @@map("solicitudes_servicio")
+}
+
+model Review {
+  id           Int               @id @default(autoincrement())
+  requestId    Int               @unique
+  request      ServiceRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  clientId     Int
+  client       User              @relation("ClientReviews", fields: [clientId], references: [id], onDelete: Cascade)
+  technicianId Int
+  technician   TechnicianProfile @relation("TechnicianReviews", fields: [technicianId], references: [id], onDelete: Cascade)
+  rating       Int
+  comment      String
+  createdAt    DateTime          @default(now())
+
+  @@map("resenas")
+}
+
+model Conversation {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     ChatMessage[]
+
+  serviceRequestId Int?
+  serviceRequest   ServiceRequest? @relation(fields: [serviceRequestId], references: [id], onDelete: SetNull)
+
+  @@map("conversaciones")
+}
+
+model ConversationParticipant {
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         Int
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+
+  @@map("participantes_conversacion")
+}
+
+model ChatMessage {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       Int
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content        String
+  type           String       @default("TEXT") // TEXT | NEGOTIATION
+  metadata       String?      // JSON stringified data
+  isRead         Boolean      @default(false)
+  timestamp      DateTime     @default(now())
+
+  @@map("mensajes_chat")
+}

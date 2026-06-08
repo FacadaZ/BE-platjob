@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
+      - DATABASE_URL=file:./dev.db
+      - JWT_SECRET=change-me-to-a-very-strong-secret-key-12345
+      - JWT_EXPIRES_IN=7d
+      - CORS_ORIGIN=*
+    volumes:
+      - sqlite_data:/usr/src/app/prisma
+    restart: always
+
+volumes:
+  sqlite_data:

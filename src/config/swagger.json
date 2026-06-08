@@ -1,0 +1,267 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "PlatJob Enterprise Backend API",
+    "version": "1.0.0",
+    "description": "API modular escalable y en tiempo real para la plataforma bidireccional de contratación de servicios técnicos PlatJob."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Servidor Local de Desarrollo"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Ingresa el token JWT en el formato: Bearer <token>"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/registro": {
+      "post": {
+        "tags": ["Autenticación"],
+        "summary": "Registrar un nuevo Cliente o Técnico",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nombre", "email", "contrasena", "rol"],
+                "properties": {
+                  "nombre": { "type": "string", "example": "Juan Pérez" },
+                  "email": { "type": "string", "format": "email", "example": "juan.perez@example.com" },
+                  "contrasena": { "type": "string", "minLength": 6, "example": "segura123" },
+                  "rol": { "type": "string", "enum": ["CLIENTE", "TECNICO"], "example": "CLIENTE" },
+                  "telefono": { "type": "string", "example": "+56912345678" },
+                  "ubicacion": { "type": "string", "example": "Santiago, Chile" },
+                  "categoria": { "type": "string", "description": "Obligatorio para rol TECNICO", "example": "Gasfitería" },
+                  "especialidades": { "type": "array", "items": { "type": "string" }, "example": ["Destapes", "Instalaciones de Calefont"] },
+                  "biografia": { "type": "string", "example": "Especialista certificado con 10 años de experiencia." },
+                  "tarifaPorHora": { "type": "number", "example": 25.50 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Usuario registrado exitosamente" },
+          "400": { "description": "Datos de entrada inválidos" },
+          "409": { "description": "Correo electrónico ya registrado" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Autenticación"],
+        "summary": "Iniciar Sesión",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "contrasena"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "juan.perez@example.com" },
+                  "contrasena": { "type": "string", "example": "segura123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Sesión iniciada correctamente, retorna token JWT" },
+          "401": { "description": "Credenciales inválidas" }
+        }
+      }
+    },
+    "/auth/yo": {
+      "get": {
+        "tags": ["Autenticación"],
+        "summary": "Obtener perfil del usuario autenticado actual",
+        "responses": {
+          "200": { "description": "Datos de perfil del usuario obtenidos" },
+          "401": { "description": "Token inválido o ausente" }
+        }
+      }
+    },
+    "/tecnicos": {
+      "get": {
+        "tags": ["Técnicos"],
+        "summary": "Buscar y filtrar técnicos",
+        "parameters": [
+          { "name": "categoria", "in": "query", "schema": { "type": "string" }, "description": "Categoría a filtrar" },
+          { "name": "estaDisponible", "in": "query", "schema": { "type": "boolean" }, "description": "Filtrar por disponibilidad" },
+          { "name": "consulta", "in": "query", "schema": { "type": "string" }, "description": "Búsqueda por texto (nombre, biografia, ubicacion)" }
+        ],
+        "responses": {
+          "200": { "description": "Listado de técnicos que cumplen el filtro" }
+        }
+      }
+    },
+    "/tecnicos/perfil/yo": {
+      "get": {
+        "tags": ["Técnicos"],
+        "summary": "Obtener mi propio perfil técnico",
+        "responses": {
+          "200": { "description": "Datos de mi perfil de técnico" }
+        }
+      },
+      "put": {
+        "tags": ["Técnicos"],
+        "summary": "Actualizar mi perfil técnico",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "categoria": { "type": "string", "example": "Plomería" },
+                  "especialidades": { "type": "array", "items": { "type": "string" }, "example": ["Fugas de gas", "Grifería"] },
+                  "biografia": { "type": "string", "example": "Biografía actualizada." },
+                  "tarifaPorHora": { "type": "number", "example": 30 },
+                  "estaDisponible": { "type": "boolean", "example": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Perfil actualizado correctamente" }
+        }
+      }
+    },
+    "/solicitudes-servicio": {
+      "post": {
+        "tags": ["Solicitudes de Servicio"],
+        "summary": "Crear una solicitud de servicio (Solo CLIENT)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tecnicoId", "categoria", "titulo", "descripcion", "direccion"],
+                "properties": {
+                  "tecnicoId": { "type": "string", "format": "uuid", "example": "d3b07384-d113-4ec3-a5f1-38112d8a071a" },
+                  "categoria": { "type": "string", "example": "Electricidad" },
+                  "titulo": { "type": "string", "example": "Reparación de cortocircuito" },
+                  "descripcion": { "type": "string", "example": "Los enchufes del segundo piso no tienen energía desde esta tarde." },
+                  "direccion": { "type": "string", "example": "Av. Apoquindo 1234, Santiago" },
+                  "presupuesto": { "type": "number", "example": 50.00 },
+                  "fechaProgramada": { "type": "string", "format": "date-time", "example": "2026-05-25T14:30:00Z" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Solicitud creada con éxito" }
+        }
+      },
+      "get": {
+        "tags": ["Solicitudes de Servicio"],
+        "summary": "Listar solicitudes asociadas al usuario actual",
+        "parameters": [
+          { "name": "estado", "in": "query", "schema": { "type": "string", "enum": ["PENDIENTE", "ACEPTADA", "EN_PROGRESO", "COMPLETADA", "CANCELADA"] } }
+        ],
+        "responses": {
+          "200": { "description": "Listado de solicitudes" }
+        }
+      }
+    },
+    "/solicitudes-servicio/{id}/estado": {
+      "patch": {
+        "tags": ["Solicitudes de Servicio"],
+        "summary": "Actualizar el estado de una solicitud de servicio",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["estado"],
+                "properties": {
+                  "estado": { "type": "string", "enum": ["ACEPTADA", "EN_PROGRESO", "COMPLETADA", "CANCELADA"] },
+                  "tarifaAcordada": { "type": "number", "description": "Tarifa acordada (opcional para el técnico al aceptar)" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Estado actualizado correctamente" }
+        }
+      }
+    },
+    "/resenas": {
+      "post": {
+        "tags": ["Reseñas"],
+        "summary": "Publicar una reseña de servicio (Solo CLIENT, una vez completado)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["solicitudId", "calificacion", "comentario"],
+                "properties": {
+                  "solicitudId": { "type": "string", "format": "uuid", "example": "4a76ef48-6d47-4cf0-8802-bd98cf0c1283" },
+                  "calificacion": { "type": "integer", "minimum": 1, "maximum": 5, "example": 5 },
+                  "comentario": { "type": "string", "example": "Excelente trabajo, muy profesional y rápido." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Reseña guardada y reputación del técnico recalculada automáticamente" }
+        }
+      }
+    },
+    "/conversaciones": {
+      "post": {
+        "tags": ["Chats & Mensajes"],
+        "summary": "Iniciar o recuperar chat directo entre un cliente y técnico",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["destinatarioId"],
+                "properties": {
+                  "destinatarioId": { "type": "string", "format": "uuid", "example": "bf317c80-db81-42cb-b7b5-2db080e75a36" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Obtiene la conversación o la crea si es la primera vez" }
+        }
+      },
+      "get": {
+        "tags": ["Chats & Mensajes"],
+        "summary": "Listar chats activos de la bandeja de entrada",
+        "responses": {
+          "200": { "description": "Listado de conversaciones del usuario" }
+        }
+      }
+    }
+  }
+}
